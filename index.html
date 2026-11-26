@@ -96,7 +96,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@
 /* ===================== LÓGICA ORIGINAL (inalterada) ===================== */
 const TYPES={almox:{name:'Almoxarifado de Garantia',cols:['Código','Saldo Estoque','Contagem','Último Balanço','Descrição','Aplicação','Localização','Página','Texto Original']},estoque:{name:'Estoque de Garantia',cols:['Código Comercial','Descrição','Original','Quantidade','Custo Unitário','Marca','Última Data','Página','Texto Original']},notas:{name:'Notas de Garantia',cols:['Pedido','Nome','Comercial','Descrição','Custo','Data','Quantidade','Valor Pedido','Página','Texto Original']},precos:{name:'Lista de Preços - Todo Estoque',cols:['Código','Descrição','Aplicação','Preço','Margem','Custo','Saldo','Valor Total','Página','Texto Original']},tgd:{name:'TGD - Troca, Garantia e Devolução',cols:['Produto','Descrição','Linha','Representante','Televenda','Quantidade','Total','Tipo','Observação','Página','Texto Original']},rua24:{name:'Estoque por Localização - Rua 24',cols:['Interno','Comercial','Original','Descrição','Código Linha','Saldo','LOC1','LOC2','Página','Texto Original']},devol:{name:'Parcial por Times - Devoluções',cols:['Meta','Meta Time','Vendedor','Vendas','Markup','% Individual','Qtd Vendas','Qtd Devoluções','Valor Devoluções','% Devolução','Markup Líquido','Faturamento Líquido','Devolução Total','% Devolução Total','Página','Texto Original']},catalogo:{name:'Catálogo RHO',cols:['Código','Descrição','Aplicação','Preço','Saldo','Referência','Página','Texto Original']}};
 const money=s=>{if(!s)return null;let n=Number(s.replace(/R\$\s?/g,'').replace(/\./g,'').replace(',','.').replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:null},num=money;
-function detect(t){let u=t.toUpperCase();if(u.includes('R-CATALOGO')&&u.includes('REF:')&&u.includes('SALDO:'))return'catalogo';if(u.includes('PARCIAL POR TIMES'))return'devol';if(u.includes('LISTA DE PREÇOS')||u.includes('MARGEM')&&u.includes('VALOR TOTAL'))return'precos';if(u.includes('ESTOQUE POR LOCALIZAÇÃO'))return'rua24';if(u.includes('VALOR PEDIDO')&&u.includes('COMERCIAL'))return'notas';if(u.includes('PRODUTO')&&u.includes('TELEVENDA')&&u.includes('QTDE'))return'tgd';if(u.includes('ULT. BALANÇO')||u.includes('LISTAGEM DE PRODUTOS PELA CLASSIFICAÇÃO'))return'almox';if(u.includes('GARANTIA EM ESTOQUE')||u.includes('COD.COMERCIAL')&&u.includes('CUSTO UNIT.')&&u.includes('ULT. DATA'))return'estoque';return null}
+function detect(t){let u=t.toUpperCase();if(u.includes('R-CATALOGO')&&u.includes('REF:'))return'catalogo';if(u.includes('PARCIAL POR TIMES'))return'devol';if(u.includes('LISTA DE PREÇOS')||u.includes('MARGEM')&&u.includes('VALOR TOTAL'))return'precos';if(u.includes('ESTOQUE POR LOCALIZAÇÃO'))return'rua24';if(u.includes('VALOR PEDIDO')&&u.includes('COMERCIAL'))return'notas';if(u.includes('PRODUTO')&&u.includes('TELEVENDA')&&u.includes('QTDE'))return'tgd';if(u.includes('ULT. BALANÇO')||u.includes('LISTAGEM DE PRODUTOS PELA CLASSIFICAÇÃO'))return'almox';if(u.includes('GARANTIA EM ESTOQUE')||u.includes('COD.COMERCIAL')&&u.includes('CUSTO UNIT.')&&u.includes('ULT. DATA'))return'estoque';return null}
 function rows(items){let a=[];for(let it of items){if(!it.str.trim())continue;let y=Math.round(it.transform[5]*2)/2,r=a.find(z=>Math.abs(z.y-y)<4);if(!r){r={y,items:[]};a.push(r)}r.items.push({x:it.transform[4],s:it.str.trim()})}return a.sort((x,y)=>y.y-x.y).map(r=>{r.items.sort((x,y)=>x.x-y.x);r.text=r.items.map(i=>i.s).join(' ').replace(/\s+/g,' ').trim();return r})}
 function region(block,a,b){return block.flatMap(r=>r.items.filter(i=>i.x>=a&&i.x<b).map(i=>i.s)).join(' ').replace(/\s+/g,' ').trim()}function mk(cols,v,p,raw){let o={};cols.forEach((c,i)=>o[c]=v[i]??'');o.Página=p;o['Texto Original']=raw;return o}
 function parse(type,pages){let out=[],issues=[],C=TYPES[type].cols;for(let p of pages){
@@ -107,20 +107,24 @@ else if(type==='precos'){for(let r of p.rows){let g=(a,b)=>region([r],a,b),cod=g
 else if(type==='tgd'){let anchors=p.rows.filter(r=>/^MD\s*\d+/i.test(r.text));for(let z=0;z<anchors.length;z++){let a=anchors[z],next=anchors[z+1],b=p.rows.filter(r=>r.y<=a.y+5&&(!next||r.y>next.y+5)&&r.y>60),g=(x1,x2)=>region(b,x1,x2),m=g(25,95).match(/MD\s*\d+/i);if(!m)continue;let obs=b.filter(r=>/PROC\./i.test(r.text)).map(r=>r.text.slice(r.text.search(/PROC\./i))).join(' '),linha=g(240,294),rep=g(294,370),tv=g(370,450),tipo=g(528,999).replace(/PROC\..*/i,'').trim();out.push(mk(C,[m[0],g(95,240),linha,rep,tv,num(g(450,485)),money(g(485,528)),tipo,obs],p.n,b.map(r=>r.text).join(' | ')))}}
 else if(type==='rua24'){for(let x of p.lines){let m=x.match(/^(\d+)\s+(MD\s*\d+)\s+(.*?)\s{1,}([A-ZÁÉÍÓÚÇ].+?)\s+(\d+)\s+([\d.,-]+)\s+([\w./-]+(?:\s*\/\s*\w+)?)\s+([\w./-]+)$/i);if(m)out.push(mk(C,[m[1],m[2],m[3],m[4],num(m[5]),num(m[6]),m[7],m[8]],p.n,x))}}
 else if(type==='catalogo'){
- let anchors=p.rows.filter(r=>/^MD\s*\d+/i.test(r.text));
+ /* Catálogos RHO/SEG: duas colunas por página, com código no topo do cartão. */
  for(let side of [0,1]){
-  let list=anchors.filter(r=>{let x=r.items.find(i=>/^MD(?:\s*\d+)?$/i.test(i.s))?.x??r.items[0]?.x??0;return side===0?x<305:x>=305});
-  for(let z=0;z<list.length;z++){
-   let a=list[z],next=list[z+1],x1=side===0?20:305,x2=side===0?305:605;
+  let x1=side===0?20:305,x2=side===0?305:605;
+  let anchors=p.rows.filter(r=>r.items.some(i=>i.x>=x1&&i.x<x2&&/^MD(?:\s*\d+)?$/i.test(i.s))&&/MD\s*\d+/i.test(region([r],x1,x2)));
+  for(let z=0;z<anchors.length;z++){
+   let a=anchors[z],next=anchors[z+1];
    let block=p.rows.filter(r=>r.y<=a.y+5&&(!next||r.y>next.y+5)).map(r=>({y:r.y,items:r.items.filter(i=>i.x>=x1&&i.x<x2)})).filter(r=>r.items.length);
-   let raw=block.map(r=>r.items.map(i=>i.s).join(' ')).join(' ').replace(/\s+/g,' ').trim();
-   let code=(raw.match(/^MD\s*(\d+)/i)||[])[1];if(!code)continue;
-   let after=raw.replace(/^MD\s*\d+\s*/i,'');
-   let appAt=after.search(/3\s*RHO\s*\d+/i),refAt=after.search(/\bREF\s*:/i),priceM=after.match(/R\$\s*([\d.,]+)/i),saldoM=after.match(/Saldo\s*:\s*([\d.,]+)/i),refM=after.match(/REF\s*:\s*(.*?)\s+R\$/i);
-   if(appAt<0||refAt<0||!priceM)continue;
-   let desc=after.slice(0,appAt).trim(),aplic=after.slice(appAt,refAt).trim(),ref=(refM?.[1]||'').trim();
-   let norm=x=>x.replace(/3\s*RH\s*O+/gi,'3RHO').replace(/3\s*RHO/gi,'3RHO').replace(/\s+/g,' ').trim();
-   out.push(mk(C,['MD '+code,desc,norm(aplic),money(priceM[1]),saldoM?num(saldoM[1]):'',norm(ref)],p.n,raw));
+   let line=r=>r.items.map(i=>i.s).join(' ').replace(/\s+/g,' ').trim();
+   let raw=block.map(line).join(' | '),code=(line(block[0]).match(/MD\s*(\d+)/i)||[])[1];if(!code)continue;
+   let titleRow=block.slice(1).find(r=>{let t=line(r);return t&&!/^REF\s*:/i.test(t)&&!/^R\$/i.test(t)&&!/^Saldo\s*:/i.test(t)});
+   let refIndex=block.findIndex(r=>/\bREF\s*:/i.test(line(r))),priceIndex=block.findIndex(r=>/R\$\s*[\d.,]+/i.test(line(r)));
+   if(!titleRow||refIndex<0)continue;
+   let ti=block.indexOf(titleRow),desc=line(titleRow);
+   let app=block.slice(ti+1,refIndex).map(line).filter(t=>t&&!/^REF\s*:/i.test(t)).join(' ').replace(/\s+/g,' ').trim();
+   let refText=line(block[refIndex]),ref=(refText.match(/REF\s*:\s*(.*)/i)||[])[1]||'';
+   let all=block.map(line).join(' '),priceM=all.match(/R\$\s*([\d.,]+)/i),saldoM=all.match(/Saldo\s*:\s*([\d.,]+)/i);
+   /* Em catálogos como SEG, a marca inicia a aplicação. Mantém o texto completo. */
+   out.push(mk(C,['MD '+code,desc,app,priceM?money(priceM[1]):'',saldoM?num(saldoM[1]):'',ref.trim()],p.n,raw));
   }
  }
 }
