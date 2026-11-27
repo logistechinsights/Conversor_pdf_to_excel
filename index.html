@@ -107,7 +107,15 @@ else if(type==='estoque'){for(let r of p.rows){let g=(a,b)=>region([r],a,b),cod=
 else if(type==='almox'){let st=p.rows.map((r,i)=>r.items.some(x=>x.x<100&&/^MD(?:\s*\d+)?$/i.test(x.s))||/^MD\s*\d+/i.test(r.text)?i:-1).filter(i=>i>=0);for(let z=0;z<st.length;z++){let b=p.rows.slice(st[z],st[z+1]??p.rows.length).filter(r=>r.y>55),g=(a,c)=>region(b,a,c),m=g(25,110).match(/MD\s*\d+/i);if(m)out.push(mk(C,[m[0],num(g(110,190)),'',g(245,325),g(325,480),g(480,715),g(715,999)],p.n,b.map(r=>r.text).join(' | ')))}}
 else if(type==='precos'){for(let r of p.rows){let g=(a,b)=>region([r],a,b),cod=g(25,105);if(/^MD\s*\d+$/i.test(cod))out.push(mk(C,[cod,g(105,315),g(315,560),money(g(710,755)),g(650,710),money(g(610,650)),num(g(560,610)),money(g(755,999))],p.n,r.text))}}
 else if(type==='tgd'){let anchors=p.rows.filter(r=>/^MD\s*\d+/i.test(r.text));for(let z=0;z<anchors.length;z++){let a=anchors[z],next=anchors[z+1],b=p.rows.filter(r=>r.y<=a.y+5&&(!next||r.y>next.y+5)&&r.y>60),g=(x1,x2)=>region(b,x1,x2),m=g(25,95).match(/MD\s*\d+/i);if(!m)continue;let obs=b.filter(r=>/PROC\./i.test(r.text)).map(r=>r.text.slice(r.text.search(/PROC\./i))).join(' '),linha=g(240,294),rep=g(294,370),tv=g(370,450),tipo=g(528,999).replace(/PROC\..*/i,'').trim();out.push(mk(C,[m[0],g(95,240),linha,rep,tv,num(g(450,485)),money(g(485,528)),tipo,obs],p.n,b.map(r=>r.text).join(' | ')))}}
-else if(type==='rua24'){for(let x of p.lines){let m=x.match(/^(\d+)\s+(MD\s*\d+)\s+(.*?)\s{1,}([A-ZÁÉÍÓÚÇ].+?)\s+(\d+)\s+([\d.,-]+)\s+([\w./-]+(?:\s*\/\s*\w+)?)\s+([\w./-]+)$/i);if(m)out.push(mk(C,[m[1],m[2],m[3],m[4],num(m[5]),num(m[6]),m[7],m[8]],p.n,x))}}
+else if(type==='rua24'){
+ /* Estoque por localização: leitura por coordenadas em todas as páginas. */
+ for(let r of p.rows){
+  let g=(a,b)=>region([r],a,b),interno=g(20,70),comercial=g(70,135).replace(/\s+/g,' ');
+  if(!/^\d+$/.test(interno)||!/^MD\s*\d+$/i.test(comercial))continue;
+  let original=g(135,215),descricao=g(215,370),codLinha=g(370,415),saldo=g(415,455),loc1=g(455,515),loc2=g(515,605);
+  out.push(mk(C,[interno,comercial,original,descricao,num(codLinha),num(saldo),loc1,loc2],p.n,r.text));
+ }
+}
 else if(type==='catalogo'){
  /* Catálogos RHO/SEG: duas colunas por página, com código no topo do cartão. */
  for(let side of [0,1]){
